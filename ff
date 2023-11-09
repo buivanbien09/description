@@ -75,7 +75,7 @@ local args = {
 game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(unpack(args))
 end)
  
-local KillingCheats = PhantomForcesWindow:NewSection("Youtube: @Buibien09")
+local KillingCheats = PhantomForcesWindow:NewSection("By: @Buibien09")
 end
 end)
  
