@@ -4,17 +4,17 @@
 --Wizard Code all Scripts.
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 --Full Key System.
-local PhantomForcesWindow = Library:NewWindow("Kills Hub - Key System")
+local PhantomForcesWindow = Library:NewWindow("BienVipPro Hub - Key System")
  
 local KillingCheats = PhantomForcesWindow:NewSection("Fast Key")
  
     KillingCheats:CreateTextbox("Check Key", function(value)
-if value == "1883729119382837" then
-wait(5)
+if value == "1" then
+wait(1)
  
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
  
-local PhantomForcesWindow = Library:NewWindow("Kills Hub - Evade v1.3")
+local PhantomForcesWindow = Library:NewWindow("BienVipPro Hub - Evade v1.3")
  
 local KillingCheats = PhantomForcesWindow:NewSection("Player")
 getgenv().Revive = false
@@ -75,7 +75,7 @@ local args = {
 game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(unpack(args))
 end)
  
-local KillingCheats = PhantomForcesWindow:NewSection("Youtube: @masketsmile")
+local KillingCheats = PhantomForcesWindow:NewSection("Youtube: @Buibien09")
 end
 end)
  
