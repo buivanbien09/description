@@ -4,7 +4,6 @@
 --Wizard Code all Scripts.
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 
-local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
  
 local PhantomForcesWindow = Library:NewWindow("BienVipPro Hub - Evade v1.3")
  
@@ -67,18 +66,14 @@ local args = {
 game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(unpack(args))
 end)
  
-local KillingCheats = PhantomForcesWindow:NewSection("Youtube: @Buibien09")
+local KillingCheats = PhantomForcesWindow:NewSection("By: @Buibien09")
 end
 end)
  
  
-getgenv().key = false
-KillingCheats:CreateToggle("Copy Key Link", function(value)
-getgenv().key = value
  
  
-if getgenv().key == true then
-setclipboard("https://pastebin.com/0vtJwyqe")
+
 end
 end)
  
