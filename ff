@@ -6,7 +6,7 @@ local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/blood
 --Full Key System.
 local PhantomForcesWindow = Library:NewWindow("BienVipPro - Key System")
  
-local KillingCheats = PhantomForcesWindow:NewSection("1")
+local KillingCheats = PhantomForcesWindow:NewSection("")
  
     KillingCheats:CreateTextbox("Check Key", function(value)
 if value == "" then
@@ -17,7 +17,7 @@ local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/blood
 local PhantomForcesWindow = Library:NewWindow("BienVipPro")
  
 local KillingCheats = PhantomForcesWindow:NewSection("Player")
-getgenv().Revive = false
+getgenv().Revive = true
  
 KillingCheats:CreateToggle("AutoRespawn", function(value)
 getgenv().Revive = value
@@ -51,7 +51,7 @@ end)
  
 local KillingCheats = PhantomForcesWindow:NewSection("AutoFarms")
  
-getgenv().Autofarm = false
+getgenv().Autofarm = true
  
 KillingCheats:CreateToggle("AutoFarm [Afk]", function(value)
         getgenv().Autofarm = value
