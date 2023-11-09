@@ -3,15 +3,7 @@
  
 --Wizard Code all Scripts.
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
---Full Key System.
-local PhantomForcesWindow = Library:NewWindow("BienVipPro Hub - Key System")
- 
-local KillingCheats = PhantomForcesWindow:NewSection("Fast Key")
- 
-    KillingCheats:CreateTextbox("Check Key", function(value)
-if value == "1" then
-wait(1)
- 
+
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
  
 local PhantomForcesWindow = Library:NewWindow("BienVipPro Hub - Evade v1.3")
