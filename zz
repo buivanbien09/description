@@ -2,7 +2,7 @@ getgenv().Setting = {
     ["Hunt"] = {
         ["Team"] = "Pirates",
         ["Min"] = 0,
-        ["Max"] = 30000000,
+        ["Max"] = 5000000,
     },
     ["Webhook"] = {
         ["Enabled"] = false, -- set true/halse
