@@ -1,0 +1,76 @@
+_G.Team = "Pirates"
+_G.FpsBoost = false
+_G.Webhook = ""
+getgenv().Region_Hop = {
+    ["Enable"] = true, -- true/false
+    ["Region"] = "Singapore"
+    --[[Singapore, United States, Germany, Japan, France, Australia, etc
+        - Singapore is the best choice for Asia
+    ]]
+}
+_G.Setting = {
+    ["Start Hunting"] = true, -- Bro wtf don't turn it off
+    ["Ken Haki"] = true,
+    ["WhiteScreen"] = false,
+    ["FruitStuff"] = true, -- Auto Buy and Store Fruits
+    ["Run"] = 4500, -- As the name, you'll run when the health below ...
+    ["MaxHealth"] = 5000,
+    ["Time&Bounty Counter"] = true,
+    ["Click Delay"] = 0.2,
+    ["SkipPlayerWhenBeingLowHealth"] = false,
+    ["Check"] = {
+        ["V4 Players"] = false,
+        ["Portal Users"] = false,
+        ["Buddha Users"] = false
+    },
+    ["Theme"] = { -- You can get RGB colors from "Color Picker" on google
+        ["Default"] = "Nilou", -- Use this if you don't know how to customize the theme, get themes on: https://github.com/clgtmm/ThemeBuilds
+        ["Custom Theme"] = {
+            ["Enable"] = true, -- Set this "false" if not knowing how to customize the theme
+            ["Color"] = {
+                ["Title Color"] = Color3.fromRGB(20, 13, 64),
+                ["Title-Back Color"] = Color3.fromRGB(34, 13, 64),
+                ["Button Color"] = Color3.fromRGB(201, 12, 140),
+                ["Stats Color"] = {
+                    ["Text Color"] = Color3.fromRGB(201, 145, 183),
+                    ["Text Stroke"] = Color3.fromRGB(30, 56, 203)
+                }
+            }
+        }
+    },
+    ["Melee"] = {
+        ["Time"] = 1,
+        ["Enable"] = true,
+        ["Z"] = {["Enable"] = true, ["HoldTime"] = 0.75},
+        ["X"] = {["Enable"] = true, ["HoldTime"] = 0.1},
+        ["C"] = {["Enable"] = true, ["HoldTime"] = 0.1}
+    },
+    ["Fruit"] = {
+        ["Time"] = 1,
+        ["Enable"] = true,
+        ["Z"] = {["Enable"] = true, ["HoldTime"] = 0.1},
+        ["X"] = {["Enable"] = true, ["HoldTime"] = 0.1},
+        ["C"] = {["Enable"] = true, ["HoldTime"] = 0.1},
+        ["V"] = {["Enable"] = false, ["HoldTime"] = 1.25},
+        ["F"] = {["Enable"] = true, ["HoldTime"] = 0}
+    },
+    ["Sword"] = {
+        ["Time"] = 1,
+        ["Enable"] = true,
+        ["Z"] = {["Enable"] = true, ["HoldTime"] = 0},
+        ["X"] = {["Enable"] = true, ["HoldTime"] = 0},
+    },
+    ["Gun"] = {
+        ["Time"] = 1,
+        ["Enable"] = false,
+        ["GunMode"] = false,
+        ["Z"] = {["Enable"] = true, ["HoldTime"] = 0},
+        ["X"] = {["Enable"] = true, ["HoldTime"] = 0},
+    }
+}
+delay(360,function()
+    if not game.Workspace:FindFirstChild("HiHiHi") then
+      game:GetService("TeleportService"):Teleport(game.PlaceId, game.Players.LocalPlayer)
+    end
+end)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/fire9182882/ahahh/main/AUTO.lua"))()
