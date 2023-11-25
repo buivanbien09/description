@@ -54,8 +54,8 @@ getgenv().Setting = {
         ["Z"] = {["Enable"] = true, ["HoldTime"] = 0},
         ["X"] = {["Enable"] = true, ["HoldTime"] = 0},
         ["C"] = {["Enable"] = true, ["HoldTime"] = 0},
-        ["V"] = {["Enable"] = true, ["HoldTime"] = 1.25},
-        ["F"] = {["Enable"] = false, ["HoldTime"] = 0}
+        ["V"] = {["Enable"] = false, ["HoldTime"] = 1.25},
+        ["F"] = {["Enable"] = true, ["HoldTime"] = 0}
     },
     ["Sword"] = {
         ["Enable"] = true,
@@ -64,7 +64,7 @@ getgenv().Setting = {
         ["X"] = {["Enable"] = true, ["HoldTime"] = 0}
     },
     ["Gun"] = {
-        ["Enable"] = true,
+        ["Enable"] = false,
         ["GunMode"] = false, 
         ["Delay"] = 1.75,
         ["Z"] = {["Enable"] = true, ["HoldTime"] = 0},
