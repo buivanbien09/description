@@ -38,7 +38,7 @@ getgenv().Setting = {
     },
     ["SafeHealth"] = {
         ["Health"] = 6000,
-        ["HighY"] = 1500
+        ["HighY"] = 6000
     },
     ["Melee"] = {
         ["Enable"] = true,
