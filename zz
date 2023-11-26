@@ -2,12 +2,12 @@ getgenv().Key = '25487d873624382f167a110f'
 repeat wait()
 until game:IsLoaded()
 wait()
-local TableChat = {"I <3 Banana So Much","I'm Banana huhuhu"}
+local TableChat = {"hi"}
 spawn(function()
     while wait() do 
         pcall(function()
             game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(TableChat[math.random(1,#TableChat)],"All")
-            wait(45)
+            wait(40005)
         end)
     end
 end)
@@ -39,7 +39,7 @@ getgenv().Setting = {
     ["Invisible"] = false,
     ["White Screen"] = false,
     ["GunMethod"] = true, --Support Only Melee And Gun,Not Invisible, Turn On Enabled Gun and Melee Please
-    ["SpamSkill"] = false, -- Will use all skills as fast as possbile ignore holding skills
+    ["SpamSkill"] = true, -- Will use all skills as fast as possbile ignore holding skills
     ["Weapons"] = {
         ["Melee"] = {
             ["Enable"] = true,
@@ -66,7 +66,7 @@ getgenv().Setting = {
             ["Skills"] = {
                 ["Z"] = {
                     ["Enable"] = false,
-                    ["HoldTime"] = 0,
+                    ["HoldTime"] = 3,125
                 },
                 ["X"] = {
                     ["Enable"] = true,
