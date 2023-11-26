@@ -23,7 +23,7 @@ getgenv().Setting = {
         ["List"] = {""},
     },
     ["Click"] = {
-        ["AlwaysClick"] = true,
+        ["AlwaysClick"] = false,
         ["FastClick"] = false
     },
     ["Another"] = {
