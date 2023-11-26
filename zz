@@ -82,7 +82,7 @@ getgenv().Setting = {
                     ["HoldTime"] = 0,
                 },
                 ["F"] = {
-                    ["Enable"] = false,
+                    ["Enable"] = true,
                     ["HoldTime"] = 0,
                 },
             },
