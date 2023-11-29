@@ -1,3 +1,6 @@
+-- Because this is a beta version, there are still many errors, so if you have any suggestions, please go to our discord
+-- Vì đây là phiên bản beta nên còn nhiều lỗi nên nếu có góp ý gì hãy vào Discord của chúng tôi 
+-- Discord Rimus Hub : https://discord.com/invite/FZzxtjgjte
 getgenv().Setting = {
     ["Hunt"] = {
         ["Team"] = "Pirates",
@@ -6,7 +9,7 @@ getgenv().Setting = {
     },
     ["Webhook"] = {
         ["Enabled"] = false, -- set true/halse
-        ["Url"] = "Yourlink webhook"
+        ["Url"] = "Your link webhook"
     },
     ["Skip"] = {
         ["V4"] = true,
@@ -23,7 +26,7 @@ getgenv().Setting = {
         ["List"] = {""},
     },
     ["Click"] = {
-        ["AlwaysClick"] = false,
+        ["AlwaysClick"] = true,
         ["FastClick"] = false
     },
     ["Another"] = {
@@ -32,7 +35,7 @@ getgenv().Setting = {
         ["Health"] = 12000,
         ["V4"] = true,
         ["LockCamera"] = true,
-        ["FPSBoots"] = false,
+        ["FPSBoots"] = true
         ["WhiteScreen"] = false,
         ["BypassTp"] = true
     },
