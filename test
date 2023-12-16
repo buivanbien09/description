@@ -30,7 +30,7 @@ getgenv().Config = {
 ["Weapons"] = {
 ["Melee"] = {
 ["Enable"] = true,
-["Delay"] = 2.5,
+["Delay"] = 0,
 ["Skills"] = {
 ["Z"] = {["Enable"] = true, ["HoldTime"] = 0.1},
 ["X"] = {["Enable"] = true, ["HoldTime"] = 0.1},
@@ -52,7 +52,7 @@ getgenv().Config = {
 --// Copy Next
 ["Sword"] = {
 ["Enable"] = true,
-["Delay"] = 1.5,
+["Delay"] = 0,
 ["Skills"] = {
 ["Z"] = {["Enable"] = true, ["HoldTime"] = 1},
 ["X"] = {["Enable"] = true, ["HoldTime"] = 0}
