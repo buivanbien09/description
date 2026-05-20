@@ -1114,6 +1114,15 @@ end)
 -- ============ WORLD TAB ============
 local WorldSection = Tabs.World:AddSection("Time & Weather")
 
+local forceTimeEnabled = false
+local forceTimeValue = 12
+
+local ForceTimeToggle = Tabs.World:AddToggle("ForceTime", {
+    Title = "Force Time",
+    Description = "Lock time of day (prevents game from resetting)",
+    Default = false
+})
+
 local TimeSlider = Tabs.World:AddSlider("TimeSlider", {
     Title = "Time of Day",
     Default = 12,
@@ -1122,8 +1131,19 @@ local TimeSlider = Tabs.World:AddSlider("TimeSlider", {
     Rounding = 1
 })
 
+ForceTimeToggle:OnChanged(function(value)
+    forceTimeEnabled = value
+end)
+
 TimeSlider:OnChanged(function(value)
+    forceTimeValue = value
     game:GetService("Lighting").ClockTime = value
+end)
+
+RunService.Heartbeat:Connect(function()
+    if forceTimeEnabled then
+        game:GetService("Lighting").ClockTime = forceTimeValue
+    end
 end)
 
 
