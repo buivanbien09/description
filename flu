@@ -1,0 +1,1454 @@
+--[[
+    Fluent GUI Script - Full Features
+    Made with Fluent Library
+]]
+
+-- Load Fluent Library
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- Variables
+local flyEnabled = false
+local noclipEnabled = false
+local espEnabled = false
+local infJumpEnabled = false
+local speedEnabled = false
+local fullbrightEnabled = false
+local flySpeed = 50
+local walkSpeed = 16
+local jumpPower = 50
+local espColor = Color3.fromRGB(255, 0, 0)
+local espTeamCheck = false
+
+-- Utility Functions
+local function getCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+local function getHumanoid()
+    local char = getCharacter()
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function getRootPart()
+    local char = getCharacter()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function notify(title, content, duration)
+    Fluent:Notify({
+        Title = title,
+        Content = content,
+        Duration = duration or 3
+    })
+end
+
+-- Create Window
+local Window = Fluent:CreateWindow({
+    Title = "Fluent Hub " .. Fluent.Version,
+    SubTitle = "by Script",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- Tabs
+local Tabs = {
+    Player = Window:AddTab({ Title = "Player", Icon = "user" }),
+    Visual = Window:AddTab({ Title = "Visual", Icon = "eye" }),
+    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
+    Auto = Window:AddTab({ Title = "Auto", Icon = "play" }),
+    World = Window:AddTab({ Title = "World", Icon = "globe" }),
+    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" }),
+}
+
+-- ============ PLAYER TAB ============
+local PlayerSection = Tabs.Player:AddSection("Movement")
+
+-- Speed Boost (multi-method for K2)
+local SpeedToggle = Tabs.Player:AddToggle("SpeedToggle", {
+    Title = "Speed Boost",
+    Description = "Multiple methods - works in most games",
+    Default = false
+})
+
+local SpeedSlider = Tabs.Player:AddSlider("SpeedSlider", {
+    Title = "Boost Power",
+    Default = 50,
+    Min = 16,
+    Max = 300,
+    Rounding = 0
+})
+
+local SpeedMethodDropdown = Tabs.Player:AddDropdown("SpeedMethod", {
+    Title = "Speed Method",
+    Values = {"WalkSpeed", "CFrame", "Velocity", "All"},
+    Default = "All",
+    Multi = false
+})
+
+SpeedSlider:OnChanged(function(value)
+    walkSpeed = value
+end)
+
+SpeedToggle:OnChanged(function(value)
+    speedEnabled = value
+end)
+
+RunService.Heartbeat:Connect(function(dt)
+    if speedEnabled then
+        local root = getRootPart()
+        local humanoid = getHumanoid()
+        if not root or not humanoid then return end
+        
+        local method = SpeedMethodDropdown.Value or "All"
+        local moving = humanoid.MoveDirection.Magnitude > 0
+        
+        -- Method 1: WalkSpeed (spam every frame)
+        if method == "WalkSpeed" or method == "All" then
+            humanoid.WalkSpeed = walkSpeed
+        end
+        
+        -- Method 2: CFrame push
+        if (method == "CFrame" or method == "All") and moving then
+            local boost = humanoid.MoveDirection * (walkSpeed / 60) * dt * 60
+            root.CFrame = root.CFrame + boost
+        end
+        
+        -- Method 3: Velocity boost
+        if (method == "Velocity" or method == "All") and moving then
+            root.Velocity = Vector3.new(
+                humanoid.MoveDirection.X * walkSpeed,
+                root.Velocity.Y,
+                humanoid.MoveDirection.Z * walkSpeed
+            )
+        end
+    end
+end)
+
+-- Jump Power
+local JumpSlider = Tabs.Player:AddSlider("JumpSlider", {
+    Title = "Jump Power",
+    Description = "Adjust jump power",
+    Default = 50,
+    Min = 50,
+    Max = 300,
+    Rounding = 0
+})
+
+JumpSlider:OnChanged(function(value)
+    jumpPower = value
+    local humanoid = getHumanoid()
+    if humanoid then
+        humanoid.JumpPower = value
+        humanoid.UseJumpPower = true
+    end
+end)
+
+
+
+-- Infinite Jump
+local InfJumpToggle = Tabs.Player:AddToggle("InfJumpToggle", {
+    Title = "Infinite Jump",
+    Default = false
+})
+
+InfJumpToggle:OnChanged(function(value)
+    infJumpEnabled = value
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local humanoid = getHumanoid()
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
+-- Fly
+local FlySection = Tabs.Player:AddSection("Fly")
+
+local FlyToggle = Tabs.Player:AddToggle("FlyToggle", {
+    Title = "Fly",
+    Description = "Press E to toggle fly",
+    Default = false
+})
+
+local FlySpeedSlider = Tabs.Player:AddSlider("FlySpeedSlider", {
+    Title = "Fly Speed",
+    Default = 50,
+    Min = 10,
+    Max = 200,
+    Rounding = 0
+})
+
+FlySpeedSlider:OnChanged(function(value)
+    flySpeed = value
+end)
+
+local flyBodyVelocity = nil
+local flyBodyGyro = nil
+
+local function startFly()
+    local rootPart = getRootPart()
+    if not rootPart then return end
+    
+    local humanoid = getHumanoid()
+    if humanoid then
+        humanoid.PlatformStand = true
+    end
+    
+    flyBodyVelocity = Instance.new("BodyVelocity")
+    flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    flyBodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    flyBodyVelocity.Parent = rootPart
+    
+    flyBodyGyro = Instance.new("BodyGyro")
+    flyBodyGyro.P = 9e4
+    flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    flyBodyGyro.CFrame = rootPart.CFrame
+    flyBodyGyro.Parent = rootPart
+end
+
+local function stopFly()
+    local humanoid = getHumanoid()
+    if humanoid then
+        humanoid.PlatformStand = false
+    end
+    
+    if flyBodyVelocity then
+        flyBodyVelocity:Destroy()
+        flyBodyVelocity = nil
+    end
+    if flyBodyGyro then
+        flyBodyGyro:Destroy()
+        flyBodyGyro = nil
+    end
+end
+
+FlyToggle:OnChanged(function(value)
+    flyEnabled = value
+    if value then
+        startFly()
+    else
+        stopFly()
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if flyEnabled and flyBodyVelocity and flyBodyGyro then
+        local rootPart = getRootPart()
+        if not rootPart then return end
+        
+        flyBodyGyro.CFrame = Camera.CFrame
+        
+        local direction = Vector3.new(0, 0, 0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            direction = direction + Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            direction = direction - Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            direction = direction - Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            direction = direction + Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            direction = direction + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            direction = direction - Vector3.new(0, 1, 0)
+        end
+        
+        if direction.Magnitude > 0 then
+            flyBodyVelocity.Velocity = direction.Unit * flySpeed
+        else
+            flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        end
+    end
+end)
+
+-- Noclip
+local NoclipSection = Tabs.Player:AddSection("Noclip")
+
+local NoclipToggle = Tabs.Player:AddToggle("NoclipToggle", {
+    Title = "Noclip",
+    Description = "Walk through walls",
+    Default = false
+})
+
+NoclipToggle:OnChanged(function(value)
+    noclipEnabled = value
+end)
+
+RunService.Stepped:Connect(function()
+    if noclipEnabled then
+        local char = getCharacter()
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- ============ VISUAL TAB ============
+local ESPSection = Tabs.Visual:AddSection("ESP")
+
+local ESPToggle = Tabs.Visual:AddToggle("ESPToggle", {
+    Title = "Player ESP",
+    Description = "See players through walls",
+    Default = false
+})
+
+
+
+
+local ESPTeamToggle = Tabs.Visual:AddToggle("ESPTeamToggle", {
+    Title = "Team Check",
+    Description = "Hide teammates",
+    Default = false
+})
+
+local ESPColorPicker = Tabs.Visual:AddColorpicker("ESPColor", {
+    Title = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0)
+})
+
+ESPColorPicker:OnChanged(function(value)
+    espColor = value
+end)
+
+ESPTeamToggle:OnChanged(function(value)
+    espTeamCheck = value
+end)
+
+-- ESP Drawing
+local espObjects = {}
+
+local function createESP(player)
+    if player == LocalPlayer then return end
+    
+    local espFolder = Instance.new("Folder")
+    espFolder.Name = player.Name .. "_ESP"
+    
+    local highlight = Instance.new("Highlight")
+    highlight.FillTransparency = 0.75
+    highlight.OutlineTransparency = 0
+    highlight.FillColor = espColor
+    highlight.OutlineColor = espColor
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextStrokeTransparency = 0.5
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.Text = player.Name
+    nameLabel.Parent = billboard
+    
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    distLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    distLabel.BackgroundTransparency = 1
+    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    distLabel.TextStrokeTransparency = 0.5
+    distLabel.TextScaled = true
+    distLabel.Font = Enum.Font.Gotham
+    distLabel.Text = "0m"
+    distLabel.Parent = billboard
+    
+    espObjects[player] = {
+        highlight = highlight,
+        billboard = billboard,
+        nameLabel = nameLabel,
+        distLabel = distLabel,
+    }
+end
+
+local function updateESP()
+    for player, esp in pairs(espObjects) do
+        if not player or not player.Parent then
+            if esp.highlight then esp.highlight:Destroy() end
+            if esp.billboard then esp.billboard:Destroy() end
+            espObjects[player] = nil
+            continue
+        end
+        
+        local character = player.Character
+        local myRoot = getRootPart()
+        
+        if character and myRoot and espEnabled then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local head = character:FindFirstChild("Head")
+            
+            if humanoidRootPart and humanoid then
+                -- Team check
+                if espTeamCheck and player.Team == LocalPlayer.Team then
+                    esp.highlight.Enabled = false
+                    esp.billboard.Enabled = false
+                    continue
+                end
+                
+                esp.highlight.Enabled = true
+                esp.highlight.FillColor = espColor
+                esp.highlight.OutlineColor = espColor
+                esp.highlight.Adornee = character
+                esp.highlight.Parent = character
+                
+                if head then
+                    esp.billboard.Enabled = true
+                    esp.billboard.Adornee = head
+                    esp.billboard.Parent = head
+                    
+                    local dist = math.floor((myRoot.Position - humanoidRootPart.Position).Magnitude)
+                    esp.distLabel.Text = tostring(dist) .. "m"
+                    esp.nameLabel.Text = player.Name .. " [" .. math.floor(humanoid.Health) .. "]"
+                end
+            else
+                esp.highlight.Enabled = false
+                esp.billboard.Enabled = false
+            end
+        else
+            if esp.highlight then esp.highlight.Enabled = false end
+            if esp.billboard then esp.billboard.Enabled = false end
+        end
+    end
+end
+
+ESPToggle:OnChanged(function(value)
+    espEnabled = value
+    if not value then
+        for _, esp in pairs(espObjects) do
+            if esp.highlight then esp.highlight.Enabled = false end
+            if esp.billboard then esp.billboard.Enabled = false end
+        end
+    end
+end)
+
+-- Initialize ESP for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    createESP(player)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    createESP(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if espObjects[player] then
+        if espObjects[player].highlight then espObjects[player].highlight:Destroy() end
+        if espObjects[player].billboard then espObjects[player].billboard:Destroy() end
+        espObjects[player] = nil
+    end
+end)
+
+RunService.RenderStepped:Connect(updateESP)
+
+-- Fullbright
+local FullbrightSection = Tabs.Visual:AddSection("Lighting")
+
+local FullbrightToggle = Tabs.Visual:AddToggle("FullbrightToggle", {
+    Title = "Fullbright",
+    Description = "Remove darkness, fog, weather effects",
+    Default = false
+})
+
+local originalLighting = {}
+local disabledEffects = {}
+
+FullbrightToggle:OnChanged(function(value)
+    fullbrightEnabled = value
+    local lighting = game:GetService("Lighting")
+    
+    if value then
+        -- Save originals
+        originalLighting.Ambient = lighting.Ambient
+        originalLighting.Brightness = lighting.Brightness
+        originalLighting.FogEnd = lighting.FogEnd
+        originalLighting.FogStart = lighting.FogStart
+        originalLighting.OutdoorAmbient = lighting.OutdoorAmbient
+        originalLighting.GlobalShadows = lighting.GlobalShadows
+        originalLighting.ClockTime = lighting.ClockTime
+        
+        -- Apply fullbright
+        lighting.Ambient = Color3.new(1, 1, 1)
+        lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        lighting.Brightness = 2
+        lighting.FogEnd = 1000000
+        lighting.FogStart = 1000000
+        lighting.GlobalShadows = false
+        lighting.ClockTime = 12
+        
+        -- Disable all post-processing effects
+        for _, effect in pairs(lighting:GetChildren()) do
+            if effect:IsA("Atmosphere") then
+                disabledEffects[effect] = {Density = effect.Density, Enabled = true}
+                effect.Density = 0
+            elseif effect:IsA("BloomEffect") then
+                disabledEffects[effect] = {Enabled = effect.Enabled}
+                effect.Enabled = false
+            elseif effect:IsA("BlurEffect") then
+                disabledEffects[effect] = {Enabled = effect.Enabled}
+                effect.Enabled = false
+            elseif effect:IsA("ColorCorrectionEffect") then
+                disabledEffects[effect] = {Enabled = effect.Enabled}
+                effect.Enabled = false
+            elseif effect:IsA("DepthOfFieldEffect") then
+                disabledEffects[effect] = {Enabled = effect.Enabled}
+                effect.Enabled = false
+            elseif effect:IsA("SunRaysEffect") then
+                disabledEffects[effect] = {Enabled = effect.Enabled}
+                effect.Enabled = false
+            end
+        end
+    else
+        -- Restore originals
+        lighting.Ambient = originalLighting.Ambient or Color3.new(0, 0, 0)
+        lighting.OutdoorAmbient = originalLighting.OutdoorAmbient or Color3.new(128/255, 128/255, 128/255)
+        lighting.Brightness = originalLighting.Brightness or 1
+        lighting.FogEnd = originalLighting.FogEnd or 10000
+        lighting.FogStart = originalLighting.FogStart or 0
+        lighting.GlobalShadows = originalLighting.GlobalShadows ~= false
+        lighting.ClockTime = originalLighting.ClockTime or 14
+        
+        -- Restore effects
+        for effect, data in pairs(disabledEffects) do
+            if effect and effect.Parent then
+                if effect:IsA("Atmosphere") then
+                    effect.Density = data.Density or 0.3
+                else
+                    effect.Enabled = data.Enabled ~= false
+                end
+            end
+        end
+        disabledEffects = {}
+    end
+end)
+
+-- FOV Changer
+local FOVSlider = Tabs.Visual:AddSlider("FOVSlider", {
+    Title = "Field of View",
+    Default = 70,
+    Min = 30,
+    Max = 120,
+    Rounding = 0
+})
+
+FOVSlider:OnChanged(function(value)
+    Camera.FieldOfView = value
+end)
+
+-- No Fog
+local NoFogToggle = Tabs.Visual:AddToggle("NoFogToggle", {
+    Title = "No Fog",
+    Description = "Remove all fog and atmosphere",
+    Default = false
+})
+
+local originalFog = {}
+
+NoFogToggle:OnChanged(function(value)
+    local lighting = game:GetService("Lighting")
+    
+    if value then
+        originalFog.FogEnd = lighting.FogEnd
+        originalFog.FogStart = lighting.FogStart
+        originalFog.FogColor = lighting.FogColor
+        
+        lighting.FogEnd = 9999999
+        lighting.FogStart = 9999999
+        
+        for _, effect in pairs(lighting:GetChildren()) do
+            if effect:IsA("Atmosphere") then
+                originalFog[effect] = {Density = effect.Density, Offset = effect.Offset}
+                effect.Density = 0
+                effect.Offset = 1
+            end
+        end
+    else
+        lighting.FogEnd = originalFog.FogEnd or 10000
+        lighting.FogStart = originalFog.FogStart or 0
+        lighting.FogColor = originalFog.FogColor or Color3.new(0.75, 0.75, 0.75)
+        
+        for _, effect in pairs(lighting:GetChildren()) do
+            if effect:IsA("Atmosphere") and originalFog[effect] then
+                effect.Density = originalFog[effect].Density or 0.3
+                effect.Offset = originalFog[effect].Offset or 0
+            end
+        end
+    end
+end)
+
+-- ============ TELEPORT TAB ============
+local TPModeSection = Tabs.Teleport:AddSection("Teleport Mode")
+
+local useTween = false
+local tweenSpeed = 100
+
+local TweenToggle = Tabs.Teleport:AddToggle("TweenToggle", {
+    Title = "Tween Teleport",
+    Description = "Smooth movement instead of instant",
+    Default = false
+})
+
+TweenToggle:OnChanged(function(value)
+    useTween = value
+end)
+
+local TweenSpeedSlider = Tabs.Teleport:AddSlider("TweenSpeed", {
+    Title = "Tween Speed",
+    Description = "Studs per second",
+    Default = 100,
+    Min = 20,
+    Max = 500,
+    Rounding = 0
+})
+
+TweenSpeedSlider:OnChanged(function(value)
+    tweenSpeed = value
+end)
+
+-- Shared teleport function
+local isTweening = false
+local function teleportTo(targetCFrame)
+    local root = getRootPart()
+    if not root then return end
+    local humanoid = getHumanoid()
+    
+    -- Add Y offset to avoid clipping into terrain
+    local finalCFrame = targetCFrame + Vector3.new(0, 5, 0)
+    
+    if useTween then
+        if isTweening then return end
+        isTweening = true
+        
+        local distance = (root.Position - finalCFrame.Position).Magnitude
+        local duration = distance / tweenSpeed
+        if duration < 0.1 then duration = 0.1 end
+        if duration > 30 then duration = 30 end
+        
+        local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+            CFrame = finalCFrame
+        })
+        tween:Play()
+        tween.Completed:Connect(function()
+            isTweening = false
+            -- Reset state after tween
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+            root.Velocity = Vector3.new(0, 0, 0)
+            root.RotVelocity = Vector3.new(0, 0, 0)
+        end)
+    else
+        root.CFrame = finalCFrame
+        -- Reset humanoid state to prevent freezing
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+        end
+        root.Velocity = Vector3.new(0, 0, 0)
+        root.RotVelocity = Vector3.new(0, 0, 0)
+        -- Extra reset after short delay
+        task.delay(0.1, function()
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+            if root then
+                root.Velocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
+end
+
+local TeleportSection = Tabs.Teleport:AddSection("Player Teleport")
+
+local playerList = {}
+for _, p in pairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        table.insert(playerList, p.Name)
+    end
+end
+
+local TeleportDropdown = Tabs.Teleport:AddDropdown("TeleportPlayer", {
+    Title = "Select Player",
+    Values = playerList,
+    Multi = false
+})
+
+-- Auto-refresh player list
+Players.PlayerAdded:Connect(function(player)
+    local newList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(newList, p.Name)
+        end
+    end
+    TeleportDropdown:SetValues(newList)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    local newList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p ~= player then
+            table.insert(newList, p.Name)
+        end
+    end
+    TeleportDropdown:SetValues(newList)
+end)
+
+local TeleportButton = Tabs.Teleport:AddButton({
+    Title = "Teleport to Player",
+    Description = "Teleport to selected player",
+    Callback = function()
+        local selected = TeleportDropdown.Value
+        if selected then
+            local targetPlayer = Players:FindFirstChild(selected)
+            if targetPlayer and targetPlayer.Character then
+                local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local myRoot = getRootPart()
+                if targetRoot and myRoot then
+                    teleportTo(targetRoot.CFrame + Vector3.new(0, 3, 0))
+                    notify("Teleport", "Teleported to " .. selected)
+                end
+            end
+        end
+    end
+})
+
+-- Click Teleport
+local ClickTPSection = Tabs.Teleport:AddSection("Click Teleport")
+
+local clickTPEnabled = false
+local ClickTPToggle = Tabs.Teleport:AddToggle("ClickTPToggle", {
+    Title = "Click Teleport",
+    Description = "Click anywhere to teleport (Right Click)",
+    Default = false
+})
+
+ClickTPToggle:OnChanged(function(value)
+    clickTPEnabled = value
+    if value then
+        notify("Click TP", "Right-click to teleport!")
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if clickTPEnabled and input.UserInputType == Enum.UserInputType.MouseButton2 then
+        local mouse = LocalPlayer:GetMouse()
+        if mouse.Hit then
+            local root = getRootPart()
+            if root then
+                teleportTo(mouse.Hit + Vector3.new(0, 3, 0))
+            end
+        end
+    end
+end)
+
+-- Waypoints System (Persistent - saves to file)
+local WaypointSection = Tabs.Teleport:AddSection("Waypoints")
+
+local savedPositions = {}
+local waypointNames = {}
+local WAYPOINT_FILE = "FluentHub_Waypoints_" .. game.PlaceId .. ".json"
+
+-- Load saved waypoints from file
+local function loadWaypoints()
+    pcall(function()
+        if isfile(WAYPOINT_FILE) then
+            local data = game:GetService("HttpService"):JSONDecode(readfile(WAYPOINT_FILE))
+            for _, wp in ipairs(data) do
+                table.insert(waypointNames, wp.name)
+                table.insert(savedPositions, CFrame.new(wp.x, wp.y, wp.z))
+            end
+        end
+    end)
+end
+
+-- Save waypoints to file
+local function saveWaypoints()
+    pcall(function()
+        local data = {}
+        for i, name in ipairs(waypointNames) do
+            local pos = savedPositions[i].Position
+            table.insert(data, {name = name, x = pos.X, y = pos.Y, z = pos.Z})
+        end
+        writefile(WAYPOINT_FILE, game:GetService("HttpService"):JSONEncode(data))
+    end)
+end
+
+-- Load on start
+loadWaypoints()
+
+local WaypointNameInput = Tabs.Teleport:AddInput("WaypointName", {
+    Title = "Waypoint Name",
+    Default = "",
+    Placeholder = "Enter name...",
+    Numeric = false
+})
+
+local WaypointDropdown = Tabs.Teleport:AddDropdown("WaypointSelect", {
+    Title = "Select Waypoint",
+    Values = waypointNames,
+    Multi = false
+})
+
+local WaypointSaveButton = Tabs.Teleport:AddButton({
+    Title = "Save Current Position",
+    Description = "Saves to file - persists after leaving!",
+    Callback = function()
+        local root = getRootPart()
+        if root then
+            local name = WaypointNameInput.Value
+            if name == "" then
+                name = "Waypoint #" .. (#savedPositions + 1)
+            end
+            table.insert(savedPositions, root.CFrame)
+            table.insert(waypointNames, name)
+            
+            WaypointDropdown:SetValues(waypointNames)
+            WaypointDropdown:SetValue(name)
+            
+            saveWaypoints()
+            notify("Waypoint", "Saved: " .. name .. " (persistent)")
+        end
+    end
+})
+
+local WaypointTPButton = Tabs.Teleport:AddButton({
+    Title = "Teleport to Waypoint",
+    Description = "Go to selected saved position",
+    Callback = function()
+        local selected = WaypointDropdown.Value
+        if selected then
+            for i, name in ipairs(waypointNames) do
+                if name == selected then
+                    local root = getRootPart()
+                    if root then
+                        teleportTo(savedPositions[i])
+                        notify("Waypoint", "Teleported to: " .. name)
+                    end
+                    break
+                end
+            end
+        else
+            notify("Waypoint", "No waypoint selected!")
+        end
+    end
+})
+
+local WaypointDeleteButton = Tabs.Teleport:AddButton({
+    Title = "Delete Selected Waypoint",
+    Callback = function()
+        local selected = WaypointDropdown.Value
+        if selected then
+            for i, name in ipairs(waypointNames) do
+                if name == selected then
+                    table.remove(savedPositions, i)
+                    table.remove(waypointNames, i)
+                    WaypointDropdown:SetValues(waypointNames)
+                    saveWaypoints()
+                    notify("Waypoint", "Deleted: " .. name)
+                    break
+                end
+            end
+        end
+    end
+})
+
+local WaypointClearButton = Tabs.Teleport:AddButton({
+    Title = "Clear All Waypoints",
+    Callback = function()
+        savedPositions = {}
+        waypointNames = {}
+        WaypointDropdown:SetValues({})
+        saveWaypoints()
+        notify("Waypoint", "All waypoints cleared")
+    end
+})
+
+
+-- ============ AUTO TAB (K2 Climbing Simulation) ============
+local AutoClimbSection = Tabs.Auto:AddSection("Auto Climb")
+
+local autoClimbEnabled = false
+local autoClimbSpeed = 30
+local autoWalkEnabled = false
+local autoJumpEnabled = false
+local autoJumpDelay = 0.5
+
+local AutoClimbToggle = Tabs.Auto:AddToggle("AutoClimbToggle", {
+    Title = "Auto Climb",
+    Description = "Automatically move upward (fly up slowly)",
+    Default = false
+})
+
+local AutoClimbSpeedSlider = Tabs.Auto:AddSlider("AutoClimbSpeed", {
+    Title = "Climb Speed",
+    Default = 30,
+    Min = 5,
+    Max = 100,
+    Rounding = 0
+})
+
+AutoClimbSpeedSlider:OnChanged(function(value)
+    autoClimbSpeed = value
+end)
+
+AutoClimbToggle:OnChanged(function(value)
+    autoClimbEnabled = value
+    local root = getRootPart()
+    local humanoid = getHumanoid()
+    if not root then return end
+    
+    if value then
+        -- Create upward force
+        if not root:FindFirstChild("AutoClimbForce") then
+            local bf = Instance.new("BodyVelocity")
+            bf.Name = "AutoClimbForce"
+            bf.MaxForce = Vector3.new(0, math.huge, 0)
+            bf.Velocity = Vector3.new(0, autoClimbSpeed, 0)
+            bf.Parent = root
+        end
+    else
+        local bf = root:FindFirstChild("AutoClimbForce")
+        if bf then bf:Destroy() end
+    end
+end)
+
+-- Update climb speed in real-time
+RunService.Heartbeat:Connect(function()
+    if autoClimbEnabled then
+        local root = getRootPart()
+        if root then
+            local bf = root:FindFirstChild("AutoClimbForce")
+            if bf then
+                bf.Velocity = Vector3.new(0, autoClimbSpeed, 0)
+            end
+        end
+    end
+end)
+
+-- Infinite Stamina
+local InfStaminaSection = Tabs.Auto:AddSection("Stamina")
+
+local InfStaminaToggle = Tabs.Auto:AddToggle("InfStamina", {
+    Title = "Infinite Stamina",
+    Description = "Never run out of stamina/energy",
+    Default = false
+})
+
+InfStaminaToggle:OnChanged(function(value)
+    if value then
+        -- Hook into player stats to keep stamina full
+        spawn(function()
+            while InfStaminaToggle.Value do
+                pcall(function()
+                    local char = getCharacter()
+                    if char then
+                        -- Try common stamina locations
+                        local humanoid = char:FindFirstChildOfClass("Humanoid")
+                        
+                        -- Search for stamina/energy values in player/leaderstats
+                        for _, obj in pairs(LocalPlayer:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = obj.Name:lower()
+                                if name:find("stamina") or name:find("energy") or name:find("stam") or name:find("endurance") or name:find("oxygen") then
+                                    obj.Value = obj.Value < 1 and 100 or math.max(obj.Value, 90)
+                                end
+                            end
+                        end
+                        
+                        -- Also check character
+                        for _, obj in pairs(char:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = obj.Name:lower()
+                                if name:find("stamina") or name:find("energy") or name:find("stam") or name:find("endurance") or name:find("oxygen") then
+                                    obj.Value = obj.Value < 1 and 100 or math.max(obj.Value, 90)
+                                end
+                            end
+                        end
+                        
+                        -- Check PlayerGui for stamina bars
+                        for _, obj in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = obj.Name:lower()
+                                if name:find("stamina") or name:find("energy") or name:find("stam") or name:find("oxygen") then
+                                    obj.Value = obj.Value < 1 and 100 or math.max(obj.Value, 90)
+                                end
+                            end
+                        end
+                    end
+                end)
+                wait(0.1)
+            end
+        end)
+    end
+end)
+
+
+
+
+-- Auto Collect (pickup nearby items)
+local AutoCollectSection = Tabs.Auto:AddSection("Auto Collect")
+
+local autoCollectEnabled = false
+local collectRadius = 50
+
+local AutoCollectToggle = Tabs.Auto:AddToggle("AutoCollectToggle", {
+    Title = "Auto Collect",
+    Description = "Auto touch/collect nearby items",
+    Default = false
+})
+
+local CollectRadiusSlider = Tabs.Auto:AddSlider("CollectRadius", {
+    Title = "Collect Radius",
+    Default = 50,
+    Min = 10,
+    Max = 200,
+    Rounding = 0
+})
+
+CollectRadiusSlider:OnChanged(function(value)
+    collectRadius = value
+end)
+
+AutoCollectToggle:OnChanged(function(value)
+    autoCollectEnabled = value
+end)
+
+spawn(function()
+    while true do
+        if autoCollectEnabled then
+            local root = getRootPart()
+            if root then
+                -- Find clickable/touchable parts nearby
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and obj.Parent then
+                        local dist = (obj.Position - root.Position).Magnitude
+                        if dist <= collectRadius then
+                            -- Check for ClickDetector
+                            local click = obj:FindFirstChild("ClickDetector") or obj:FindFirstChildOfClass("ClickDetector")
+                            if click then
+                                fireclickdetector(click)
+                            end
+                            -- Check for ProximityPrompt
+                            local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt and prompt.Enabled then
+                                fireproximityprompt(prompt)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        wait(1)
+    end
+end)
+
+-- Instant Interaction
+local InstantSection = Tabs.Auto:AddSection("Interaction")
+
+local instantInteractEnabled = false
+local originalHoldDurations = {}
+
+local InstantInteractToggle = Tabs.Auto:AddToggle("InstantInteract", {
+    Title = "Instant Interaction",
+    Description = "No hold time on ProximityPrompts",
+    Default = false
+})
+
+InstantInteractToggle:OnChanged(function(value)
+    instantInteractEnabled = value
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            if value then
+                originalHoldDurations[obj] = obj.HoldDuration
+                obj.HoldDuration = 0
+            else
+                obj.HoldDuration = originalHoldDurations[obj] or 1
+            end
+        end
+    end
+end)
+
+-- Auto-apply to new ProximityPrompts
+Workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") and instantInteractEnabled then
+        originalHoldDurations[obj] = obj.HoldDuration
+        obj.HoldDuration = 0
+    end
+end)
+
+-- ============ WORLD TAB ============
+local WorldSection = Tabs.World:AddSection("Time & Weather")
+
+local TimeSlider = Tabs.World:AddSlider("TimeSlider", {
+    Title = "Time of Day",
+    Default = 12,
+    Min = 0,
+    Max = 24,
+    Rounding = 1
+})
+
+TimeSlider:OnChanged(function(value)
+    game:GetService("Lighting").ClockTime = value
+end)
+
+
+
+
+-- ============ MISC TAB ============
+local MiscSection = Tabs.Misc:AddSection("Utilities")
+
+local ServerHopButton = Tabs.Misc:AddButton({
+    Title = "Server Hop",
+    Description = "Join a different server",
+    Callback = function()
+        local TeleportService = game:GetService("TeleportService")
+        local HttpService = game:GetService("HttpService")
+        
+        local servers = HttpService:JSONDecode(
+            game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+        )
+        
+        if servers and servers.data then
+            for _, server in pairs(servers.data) do
+                if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
+                    break
+                end
+            end
+        end
+    end
+})
+
+local RejoinButton = Tabs.Misc:AddButton({
+    Title = "Rejoin Server",
+    Description = "Rejoin current server",
+    Callback = function()
+        local TeleportService = game:GetService("TeleportService")
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+    end
+})
+
+local CopyGameIDButton = Tabs.Misc:AddButton({
+    Title = "Copy Game ID",
+    Callback = function()
+        setclipboard(tostring(game.PlaceId))
+        notify("Misc", "Game ID copied: " .. game.PlaceId)
+    end
+})
+
+-- FPS Unlock permanent
+pcall(function() setfpscap(999) end)
+
+
+
+-- Reach Extender (ProximityPrompt distance)
+local ReachToggle = Tabs.Misc:AddToggle("ReachExtend", {
+    Title = "Reach Extender",
+    Description = "Interact from further away",
+    Default = false
+})
+
+local ReachSlider = Tabs.Misc:AddSlider("ReachDist", {
+    Title = "Reach Distance",
+    Default = 20,
+    Min = 10,
+    Max = 100,
+    Rounding = 0
+})
+
+local originalDistances = {}
+
+ReachToggle:OnChanged(function(value)
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            if value then
+                originalDistances[obj] = obj.MaxActivationDistance
+                obj.MaxActivationDistance = ReachSlider.Value
+            else
+                obj.MaxActivationDistance = originalDistances[obj] or 7
+            end
+        end
+    end
+end)
+
+Workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") and ReachToggle.Value then
+        originalDistances[obj] = obj.MaxActivationDistance
+        obj.MaxActivationDistance = ReachSlider.Value
+    end
+end)
+
+-- Auto Respawn
+local AutoRespawnToggle = Tabs.Misc:AddToggle("AutoRespawn", {
+    Title = "Auto Respawn",
+    Description = "Instantly respawn when you die",
+    Default = false
+})
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    humanoid.Died:Connect(function()
+        if AutoRespawnToggle.Value then
+            wait(0.5)
+            -- Try multiple respawn methods
+            pcall(function()
+                local args = {[1] = ""}
+                game:GetService("ReplicatedStorage"):FindFirstChild("RESPAWN_REQUEST"):FireServer(unpack(args))
+            end)
+            pcall(function()
+                LocalPlayer:LoadCharacter()
+            end)
+        end
+    end)
+end)
+
+-- Character Scale
+local ScaleSection = Tabs.Misc:AddSection("Character")
+
+local ScaleSlider = Tabs.Misc:AddSlider("CharScale", {
+    Title = "Character Size",
+    Description = "Scale your character",
+    Default = 1,
+    Min = 0.5,
+    Max = 3,
+    Rounding = 1
+})
+
+ScaleSlider:OnChanged(function(value)
+    local char = getCharacter()
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local bodyDepth = humanoid:FindFirstChild("BodyDepthScale")
+            local bodyHeight = humanoid:FindFirstChild("BodyHeightScale")
+            local bodyWidth = humanoid:FindFirstChild("BodyWidthScale")
+            local headScale = humanoid:FindFirstChild("HeadScale")
+            
+            if bodyDepth then bodyDepth.Value = value end
+            if bodyHeight then bodyHeight.Value = value end
+            if bodyWidth then bodyWidth.Value = value end
+            if headScale then headScale.Value = value end
+        end
+    end
+end)
+
+-- Hide Name
+
+
+
+-- Chat Spam (for fun)
+local ChatInput = Tabs.Misc:AddInput("ChatInput", {
+    Title = "Chat Message",
+    Default = "",
+    Placeholder = "Enter message...",
+    Numeric = false
+})
+
+local ChatSpamToggle = Tabs.Misc:AddToggle("ChatSpam", {
+    Title = "Chat Spam",
+    Default = false
+})
+
+local function sendChat(msg)
+    -- Try new TextChatService first
+    local TextChatService = game:GetService("TextChatService")
+    local channels = TextChatService:FindFirstChild("TextChannels")
+    if channels then
+        local rbxGeneral = channels:FindFirstChild("RBXGeneral")
+        if rbxGeneral then
+            rbxGeneral:SendAsync(msg)
+            return
+        end
+    end
+    -- Fallback to old chat system
+    pcall(function()
+        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, "All")
+    end)
+    -- Fallback to StarterGui
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+            Text = msg,
+            Color = Color3.new(1,1,1)
+        })
+    end)
+end
+
+spawn(function()
+    while true do
+        if ChatSpamToggle.Value and ChatInput.Value ~= "" then
+            sendChat(ChatInput.Value)
+        end
+        wait(1.5)
+    end
+end)
+
+-- ============ SAVE/LOAD CONFIG ============
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("FluentHub")
+SaveManager:SetFolder("FluentHub/configs")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Misc)
+SaveManager:BuildConfigSection(Tabs.Misc)
+
+-- Select default tab
+Window:SelectTab(1)
+
+-- Notify loaded
+notify("Fluent Hub", "Script loaded successfully!", 5)
+
+-- On-screen hotkey status indicator
+local StatusGui = Instance.new("ScreenGui")
+StatusGui.Name = "HotkeyStatus"
+StatusGui.ResetOnSpawn = false
+StatusGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local StatusFrame = Instance.new("Frame")
+StatusFrame.Size = UDim2.new(0, 160, 0, 60)
+StatusFrame.Position = UDim2.new(0, 10, 0.5, -30)
+StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+StatusFrame.BackgroundTransparency = 0.3
+StatusFrame.BorderSizePixel = 0
+StatusFrame.Parent = StatusGui
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 8)
+StatusCorner.Parent = StatusFrame
+
+local ClimbLabel = Instance.new("TextLabel")
+ClimbLabel.Size = UDim2.new(1, -10, 0.5, 0)
+ClimbLabel.Position = UDim2.new(0, 10, 0, 0)
+ClimbLabel.BackgroundTransparency = 1
+ClimbLabel.Font = Enum.Font.GothamBold
+ClimbLabel.TextSize = 14
+ClimbLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+ClimbLabel.TextXAlignment = Enum.TextXAlignment.Left
+ClimbLabel.Text = "[C] Climb: OFF"
+ClimbLabel.Parent = StatusFrame
+
+local FlyLabel = Instance.new("TextLabel")
+FlyLabel.Size = UDim2.new(1, -10, 0.5, 0)
+FlyLabel.Position = UDim2.new(0, 10, 0.5, 0)
+FlyLabel.BackgroundTransparency = 1
+FlyLabel.Font = Enum.Font.GothamBold
+FlyLabel.TextSize = 14
+FlyLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+FlyLabel.TextXAlignment = Enum.TextXAlignment.Left
+FlyLabel.Text = "[E] Fly: OFF"
+FlyLabel.Parent = StatusFrame
+
+StatusGui.Parent = LocalPlayer.PlayerGui
+
+local function updateStatus()
+    if AutoClimbToggle.Value then
+        ClimbLabel.Text = "[C] Climb: ON"
+        ClimbLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
+    else
+        ClimbLabel.Text = "[C] Climb: OFF"
+        ClimbLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+    end
+    
+    if FlyToggle.Value then
+        FlyLabel.Text = "[E] Fly: ON"
+        FlyLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
+    else
+        FlyLabel.Text = "[E] Fly: OFF"
+        FlyLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+    end
+end
+
+RunService.Heartbeat:Connect(updateStatus)
+
+-- Customizable Keybinds
+local KeybindSection = Tabs.Misc:AddSection("Hotkeys")
+
+local FlyKeybind = Tabs.Misc:AddKeybind("FlyKey", {
+    Title = "Fly Toggle Key",
+    Mode = "Toggle",
+    Default = "E",
+    ChangedCallback = function(New)
+        notify("Keybind", "Fly key set to: " .. New)
+    end
+})
+
+local ClimbKeybind = Tabs.Misc:AddKeybind("ClimbKey", {
+    Title = "Auto Climb Toggle Key",
+    Mode = "Toggle",
+    Default = "C",
+    ChangedCallback = function(New)
+        notify("Keybind", "Climb key set to: " .. New)
+    end
+})
+
+-- Keybind handler
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if UserInputService:GetFocusedTextBox() then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+    
+    -- Fly keybind
+    if FlyKeybind:GetState() then
+        flyEnabled = not flyEnabled
+        FlyToggle.Value = flyEnabled
+        if flyEnabled then startFly() else stopFly() end
+    end
+    
+    -- Climb keybind
+    if ClimbKeybind:GetState() then
+        autoClimbEnabled = not autoClimbEnabled
+        AutoClimbToggle.Value = autoClimbEnabled
+        local root = getRootPart()
+        if root then
+            if autoClimbEnabled then
+                if not root:FindFirstChild("AutoClimbForce") then
+                    local bf = Instance.new("BodyVelocity")
+                    bf.Name = "AutoClimbForce"
+                    bf.MaxForce = Vector3.new(0, math.huge, 0)
+                    bf.Velocity = Vector3.new(0, autoClimbSpeed, 0)
+                    bf.Parent = root
+                end
+            else
+                local bf = root:FindFirstChild("AutoClimbForce")
+                if bf then bf:Destroy() end
+            end
+        end
+    end
+end)
